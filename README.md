@@ -1,9 +1,10 @@
 # CHORD
 
 CHORD combines a conditional VAE trained to penalize predicted constraint
-violations along latent interpolants with inference that updates conditioning
-from the decoded design's predicted metrics. Neither step guarantees simulator
-feasibility; generated designs need independent evaluation.
+violations along latent interpolants with self-consistent conditioning at
+inference. These complementary ingredients support feasible design interpolation.
+We assess stellarator feasibility against prescribed constraints using metrics
+computed by the physics solver.
 
 The problem it addresses: two designs can both satisfy a simulator's
 constraints while every design decoded between them violates them. Training on
@@ -74,16 +75,16 @@ python -m pip install -e '.[dev,toy]'
 python -m pytest
 ```
 
-## Artifacts
+## Data
 
-The private Hugging Face dataset contains the fixed-aspect-ratio corpus and the
-campaign and generated-front evaluations. Access requires authentication. The
-surrogate checkpoint and its training subset remain in GCS; see
-[ARTIFACTS.md](ARTIFACTS.md) for availability and provenance.
+The datasets accompanying the paper are available on
+[Hugging Face](https://huggingface.co/datasets/proxima-fusion/chord-paper).
+They include a corpus of 100,000 stellarator boundaries spanning magnetic-axis
+torsion at fixed aspect ratio, optimization-campaign evaluations, and generated
+boundaries with solver evaluations for the front-filling study.
 
-```bash
-export CHORD_ARTIFACT_BASE=hf://datasets/proxima-fusion/chord-paper  # the default
-```
+See [ARTIFACTS.md](ARTIFACTS.md) for dataset details and provenance, and
+[REPRODUCING.md](REPRODUCING.md) for the reproduction workflows.
 
 ## Constructed benchmarks
 
