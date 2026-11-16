@@ -1,0 +1,97 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "chord"
+version = "0.1.0"
+description = "Feasibility-regularized latent interpolation for simulator-constrained design"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+classifiers = [
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+]
+dependencies = [
+  "numpy",
+  "pandas",
+  "pyarrow",
+  "torch>=2.0",
+  "fsspec",
+]
+
+[project.urls]
+Repository = "https://github.com/proximafusion/chord"
+Issues = "https://github.com/proximafusion/chord/issues"
+Dataset = "https://huggingface.co/datasets/proxima-fusion/chord-paper"
+
+[project.optional-dependencies]
+# Artifact backends. The base URI's scheme decides which is needed.
+gcs = ["gcsfs"]
+huggingface = ["huggingface-hub"]
+# The stellarator experiments evaluate designs with VMEC, which arrives through
+# constellaration. The constructed-example benchmarks need none of this.
+# The paper uses the pre-0.3 definition of the flux-compression constraint.
+stellarator = ["constellaration==0.2.6"]
+# The constructed benchmarks build their corpora with CMA-ES. The method itself
+# does not depend on it.
+toy = ["cma"]
+dev = ["pytest", "ruff", "pyright==1.1.412", "pandas-stubs"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["chord"]
+
+[tool.ruff]
+line-length = 88
+lint.preview = true
+lint.select = [
+    "E",       # pycodestyle errors
+    "W",       # pycodestyle warnings
+    "F",       # Pyflakes
+    "I",       # isort
+    "RUF100",  # remove unused noqa directives
+    "PERF101", # do not cast an iterable to list before iterating
+    "NPY001",  # deprecated NumPy aliases
+    "NPY003",  # deprecated NumPy functions
+    "D200",
+    "D207",
+    "D208",
+    "D214",
+    "D215",
+    "D301",    # use r""" if the docstring contains a backslash
+    "D403",    # first word of a docstring is capitalized
+    "D418",
+    "DOC102",  # docstrings stay in sync with the arguments
+    "B006",    # mutable default arguments
+    "B023",    # closures capturing loop variables by reference
+    "PLC0206", # extracting values from a dict without .items()
+    "PLC2801", # unnecessary dunder call
+    "PLC3002", # unnecessary direct lambda call
+    "UP006",   # List[int] -> list[int]
+    "UP007",   # X | Y instead of Union[X, Y]
+    "UP010",   # unnecessary __future__ import
+    "UP029",   # unnecessary builtin import
+    "UP035",   # deprecated import
+]
+lint.pydocstyle.convention = "google"
+lint.pydoclint.ignore-one-line-docstrings = true
+lint.isort.default-section = "first-party"
+lint.future-annotations = true
+# A test's docstring describes its intent rather than its arguments.
+lint.per-file-ignores = { "*_test.py" = ["DOC102"] }
+
+[tool.pytest.ini_options]
+testpaths = ["chord", "tools"]
+
+[tool.pyright]
+include = ["chord", "tools"]
+typeCheckingMode = "standard"
+# The floor this package claims support for, so the check sees what the oldest
+# supported interpreter sees.
+pythonVersion = "3.10"
+# constellaration is an optional extra. Its absence is silenced per-file in
+# chord/evaluate.py rather than globally: a global suppression also hides a
+# missing *required* dependency, and an unresolved import still poisons
+# inference downstream, so the check would pass while narrowing nothing.
