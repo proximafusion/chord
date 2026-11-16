@@ -7,11 +7,14 @@ statistics would silently feed the surrogate inputs it was not trained on.
 """
 
 import dataclasses
+import json
+import pathlib
 
 import numpy as np
 import pandas as pd
 import pytest
 import torch
+from chord import artifacts, models
 
 from ... import corpus as corpus_mod
 from ... import features
@@ -207,3 +210,70 @@ def test_variants_without_the_regularizer_may_train_briefly() -> None:
     )
 
     assert len(trained.history) == 1
+
+
+@pytest.mark.parametrize("conditional", [True, False])
+def test_archived_model_preserves_boundary_and_condition_transforms(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, conditional: bool
+) -> None:
+    """Saved feature and condition transforms preserve the decoded boundary."""
+    transform = _standardization()
+    names = tuple(reversed(METRIC_NAMES))
+    count = len(names)
+    model = models.CVAE(
+        x_dim=transform.n_features,
+        y_dim=count if conditional else 0,
+        latent_dim=2,
+        hidden_dims=[8, 8],
+    ).eval()
+    path = "fixed_ar/reference.pt"
+    folder = tmp_path / "fixed_ar"
+    folder.mkdir()
+    torch.save(model.state_dict(), tmp_path / path)
+    (folder / "models.json").write_text(
+        json.dumps(
+            {
+                path: {
+                    "conditional": conditional,
+                    "latent_dim": 2,
+                    "hidden_dims": [8, 8],
+                    "use_layer_norm": True,
+                    "use_residual": True,
+                }
+            }
+        )
+    )
+    mean = np.arange(count, dtype=np.float64)
+    std = np.full(count, 2.0)
+    np.savez(
+        folder / "metadata.npz",
+        feature_alpha=transform.alpha,
+        feature_kept=transform.kept,
+        feature_mean=transform.mean,
+        feature_std=transform.std,
+        condition_names=np.asarray(names),
+        condition_mean=mean,
+        condition_std=std,
+    )
+    monkeypatch.setenv(artifacts.ARTIFACT_BASE_ENV, str(tmp_path))
+    loaded = training.load_archived_model(path)
+    x = np.arange(3 * transform.n_features, dtype=np.float64).reshape(3, -1) / 8
+    y = np.arange(3 * count, dtype=np.float64).reshape(3, -1) / 4
+    boundaries = transform.decode(x)
+    conditions = y * std + mean
+    conditions.setflags(write=False)
+    with torch.no_grad():
+        expected_z = model.encode(
+            torch.tensor(x, dtype=torch.float32), torch.tensor(y, dtype=torch.float32)
+        )
+        expected_x = model.decode(expected_z, torch.tensor(y, dtype=torch.float32))
+    actual_z = loaded.encode(boundaries, conditions)
+    actual_boundaries = loaded.decode(
+        actual_z, loaded.standardized_conditions(conditions)
+    )
+    assert loaded.condition_columns == names
+    assert not loaded.model.training
+    torch.testing.assert_close(actual_z, expected_z, rtol=0.0, atol=0.0)
+    np.testing.assert_allclose(
+        actual_boundaries, transform.decode(expected_x.numpy()), rtol=0.0, atol=0.0
+    )

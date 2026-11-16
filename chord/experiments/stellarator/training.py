@@ -19,10 +19,12 @@ forgetting to match them.
 from __future__ import annotations
 
 import dataclasses
+import json
 import logging
 
 import numpy as np
 import torch
+from chord import artifacts
 from numpy.typing import NDArray
 
 from ... import corpus as corpus_mod
@@ -61,7 +63,7 @@ class Trained:
 
     model: models.CVAE
     standardization: features.Standardization
-    """Shared with the surrogate, which is why it is carried rather than refitted."""
+    """The feature transform used to train this decoder."""
 
     scaler: inference_mod.ConditionScaler
     condition_columns: tuple[str, ...]
@@ -89,6 +91,49 @@ class Trained:
         if not self.conditional:
             return torch.zeros(len(conditions), 0)
         return self.scaler.encode(_as_tensor(conditions))
+
+
+def load_archived_model(name: str = "fixed_ar/s0/z16/chord.pt") -> Trained:
+    """Load a paper model with its original feature and conditioning transforms.
+
+    Args:
+        name: Checkpoint path listed in `fixed_ar/models.json`, relative to the
+            configured artifact base. Conditioning values use the released
+            corpus's metric names and units.
+
+    Returns:
+        A CPU model in evaluation mode, ready to encode and decode boundaries.
+
+    Raises:
+        KeyError: The checkpoint is not in the released model catalog.
+    """
+    with artifacts.open_artifact("fixed_ar/models.json") as handle:
+        settings = json.load(handle)[name]
+    with (
+        artifacts.open_artifact("fixed_ar/metadata.npz") as handle,
+        np.load(handle, allow_pickle=False) as data,
+    ):
+        transform = features.Standardization(
+            alpha=float(data["feature_alpha"]),
+            kept=data["feature_kept"].copy(),
+            mean=data["feature_mean"].copy(),
+            std=data["feature_std"].copy(),
+        )
+        names = tuple(data["condition_names"].tolist())
+        scaler = inference_mod.ConditionScaler(
+            data["condition_mean"].copy(), data["condition_std"].copy()
+        )
+    model = models.CVAE(
+        x_dim=transform.n_features,
+        y_dim=len(names) if settings["conditional"] else 0,
+        latent_dim=settings["latent_dim"],
+        hidden_dims=settings["hidden_dims"],
+        use_layer_norm=settings["use_layer_norm"],
+        use_residual=settings["use_residual"],
+    )
+    with artifacts.open_artifact(name) as handle:
+        model.load_state_dict(torch.load(handle, map_location="cpu", weights_only=True))
+    return Trained(model.eval(), transform, scaler, names, [])
 
 
 def train(
@@ -171,4 +216,4 @@ def _check_conditioning_is_predicted(
 
 
 def _as_tensor(values: NDArray) -> torch.Tensor:
-    return torch.as_tensor(np.asarray(values), dtype=torch.float32)
+    return torch.tensor(np.asarray(values), dtype=torch.float32)

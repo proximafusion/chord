@@ -80,8 +80,11 @@ python -m pytest
 The datasets accompanying the paper are available on
 [Hugging Face](https://huggingface.co/datasets/proxima-fusion/chord-paper).
 They include a corpus of 100,000 stellarator boundaries spanning magnetic-axis
-torsion at fixed aspect ratio, optimization-campaign evaluations, and generated
-boundaries with solver evaluations for the front-filling study.
+geometry at fixed aspect ratio, a 500,000-boundary surrogate-training subset,
+optimization-campaign evaluations, and generated boundaries with solver evaluations
+for the front-filling study. Trained models and their original normalization are
+available there too. The larger historical datasets are available upon request
+from [Santiago A. Cadena](mailto:scadena@proximafusion.com).
 
 See [ARTIFACTS.md](ARTIFACTS.md) for dataset details and provenance, and
 [REPRODUCING.md](REPRODUCING.md) for the reproduction workflows.
@@ -114,9 +117,28 @@ These commands exercise the implementation. See [REPRODUCING.md](REPRODUCING.md)
 for the distinction between demonstrations, inference from saved paper models,
 rescoring, and retraining.
 
+## Saved paper models
+
+Install the `huggingface` extra to load the archived fixed-aspect-ratio model and
+physics surrogate directly:
+
+```python
+from chord import artifacts
+from chord.experiments.stellarator import training
+
+model = training.load_archived_model("fixed_ar/s0/z16/chord.pt")
+predictor = artifacts.released_surrogate()
+```
+
+The checkpoint supplies the trained weights and its own preprocessing; using it
+does not require the full surrogate-training dataset. See
+[REPRODUCING.md](REPRODUCING.md) for raw-boundary encoding and decoding examples,
+the model catalog, and the distinction between saved-model inference and retraining.
+
 ## Archived front models
 
-With the prepared front artifacts installed under `CHORD_ARTIFACT_BASE`:
+The following command loads the paired model and generator inputs from Hugging Face:
+
 
 ```bash
 python -m chord.experiments.frontfill.archive --gap g1 --model chord --out g1.npz

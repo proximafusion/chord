@@ -30,7 +30,9 @@ from . import surrogate as surrogate_mod
 ARTIFACT_BASE_ENV = "CHORD_ARTIFACT_BASE"
 """Environment variable overriding where published artifacts are read from."""
 
-DEFAULT_ARTIFACT_BASE = "hf://datasets/proxima-fusion/chord-paper"
+DEFAULT_ARTIFACT_BASE = (
+    "hf://datasets/proxima-fusion/chord-paper@28f84539fddd171d950d5f7d4a8878dcc649ad15"
+)
 """Where artifacts are read from when nothing overrides it.
 
 The published location, so a fresh checkout works without configuration. Anywhere with

@@ -1,34 +1,29 @@
 # Artifacts
 
-Prepared artifacts and their provenance. They support evaluation of saved results;
-they do not include every training corpus needed to retrain the paper's models.
-The Hugging Face dataset is private and requires an authenticated account with read
-access. Revision `ad7d496e918cf193e79076418426ed314a07d1de` contains the boundary corpus,
-corrected campaign table, generated front, feasible boundary JSON, and an audit report.
+Data and trained models are hosted on
+[Hugging Face](https://huggingface.co/datasets/proxima-fusion/chord-paper).
+The code pins revision `28f84539fddd171d950d5f7d4a8878dcc649ad15`. Loaders fetch the artifacts needed for each
+workflow; the full optimization history is not required for saved-model inference.
+`CHORD_ARTIFACT_BASE` can select another revision or a downloaded local directory.
 
-```bash
-# The default; private-dataset access is required.
-export CHORD_ARTIFACT_BASE=hf://datasets/proxima-fusion/chord-paper
-```
+| Artifact | Contents |
+|---|---|
+| `corpus.parquet` | 100,000 feasible fixed-aspect-ratio boundaries and original train/validation/test labels |
+| `surrogate_corpus.parquet` | 500,000 sampled boundaries for compact surrogate-training studies |
+| `surrogate.pt` | Original fixed-AR metric surrogate, with its feature and metric normalization |
+| `fixed_ar/` | 48 sweep models plus one alternate checkpoint, a model catalog, and original transforms |
+| `frontfill/g1/` through `g4/` | Eight decoders, four surrogates, original configurations, generator inputs, and surrogate normalization |
+| `campaign_front.parquet` | Corrected campaign roles and front-comparison metrics |
+| `generated_front.parquet` | All 1,200 screened front candidates and high-fidelity evaluations |
+| `generated_boundaries.json` | The 1,120 benchmark-feasible generated boundaries |
+| `release_manifest.json` | Sizes and SHA-256 hashes for the added data and model files |
 
-Any location holding a copy works, including a local directory. The scheme selects the
-backend, so `gs://` needs `pip install 'chord[gcs]'` and `hf://` needs
-`chord[huggingface]`.
-
-| file | size | location | what it is |
-|---|---|---|---|
-| `corpus.parquet` | 80 MB | Hugging Face and GCS | the fixed-aspect-ratio design corpus |
-| `surrogate_corpus.parquet` | 374 MB | GCS only | a subset of the surrogate's training and validation data |
-| `surrogate.pt` | 2.3 MB | GCS only | the prepared surrogate checkpoint |
-| `campaign_front.parquet` | 324 kB | Hugging Face | corrected campaign roles for front comparisons |
-| `generated_front.parquet` | 2.7 MB | Hugging Face and GCS | generated designs and high-fidelity evaluations |
-| `generated_boundaries.json` | 2.3 MB | Hugging Face and GCS | the 1,120 benchmark-feasible generated boundaries |
-
-The two surrogate artifacts have not been uploaded to Hugging Face. A local copy
-containing both files can be used with `CHORD_ARTIFACT_BASE=/path/to/artifacts`.
-Their original storage locations are retained in the authors' provenance records.
-The GCS campaign table still has stale roles; use the corrected Hugging Face table
-for the paper's five-anchor comparison.
+The existing corpus and front-evaluation files are unchanged from revision
+`ad7d496e918cf193e79076418426ed314a07d1de`. The new release adds the surrogate subset,
+checkpoints, inference inputs and documentation. `audit.json` describes the original
+data checks; `release_inference_checks.json` and `surrogate_subset_audit.json` record
+the added checks. Artifact storage backends use `chord[huggingface]`, `chord[gcs]`,
+or ordinary local paths.
 
 ## `corpus.parquet`
 
@@ -59,10 +54,16 @@ multi-aspect-ratio anchor-campaign training corpus.
 
 ## `surrogate_corpus.parquet`
 
-500,000 boundaries sampled from the broad-scan surrogate dataset, keeping its
-train and validation proportions. Boundaries the simulator failed on are dropped: they
-are about one in ten thousand, and with no convergence head to train there is nothing to
-do with a row whose metrics are all missing.
+500,000 boundaries sampled within the original surrogate train and validation
+pools: 450,000 training and 50,000 validation rows. The file contains 90 raw
+Fourier coefficients and 11 physical metrics per row. All entries are finite.
+There are 499,995 distinct boundary vectors and five repeated rows.
+
+This is the existing random subset, not a diversity-selected or near-duplicate-
+filtered dataset. Rows missing any original target metric were excluded during
+export. It supports compact training studies, but retraining on it has not been
+shown to reproduce the historical 15-output surrogate. Its full 5,089,970-row
+training/validation archive is available upon request.
 
 ## `surrogate.pt`
 
@@ -159,16 +160,17 @@ not require installing or running VMEC.
 Pin the dataset revision when downloading, then point the code to that local copy:
 
 ```bash
-hf download proxima-fusion/chord-paper --repo-type dataset --revision ad7d496e918cf193e79076418426ed314a07d1de --local-dir artifacts/chord
+hf download proxima-fusion/chord-paper --repo-type dataset --revision 28f84539fddd171d950d5f7d4a8878dcc649ad15 --local-dir artifacts/chord
 export CHORD_ARTIFACT_BASE=artifacts/chord
 ```
 
 | task | available inputs | limitation |
 |---|---|---|
-| Corpus analysis and front rescoring | pinned private Hugging Face package | requires repository access |
+| Corpus analysis and front rescoring | pinned Hugging Face package | no new simulator evaluation |
 | Re-evaluating released boundaries | package plus the pinned simulator | requires new physics evaluations |
 | Rescoring the original fixed-AR interpolation sweep | candidates and metric shards in internal GCS | historical tables use eight interior points; the release evaluator includes all nine |
-| Retraining the original front models | per-gap data, models, and configs in internal GCS | not part of the Hugging Face package |
+| Saved-model inference | fixed-AR and per-gap checkpoints on Hugging Face | original normalization included |
+| Retraining the original front models | prepared generator inputs and configs on Hugging Face; complete surrogate inputs upon request | archived training protocol still needs a validated standalone port |
 
 The original main interpolation sweep has been rescored on the symmetric nine-point
 grid as an appendix sensitivity analysis. The historical eight-point comparisons
@@ -180,61 +182,40 @@ and are archived separately. They support comparisons under their recorded proto
 they are not replacements for missing historical raw files, and the cycle proxy is
 not a reproduction of Notin's Bayesian estimator.
 
-Per-gap reproduction artifacts have the following original paths relative to
-the archived artifact root. The prepared release layout is documented in
-[REPRODUCING.md](REPRODUCING.md):
+## Saved-model inference
 
-- `arc_datasets/arc_cvae_v5_g{1,2,3,4}.npz`: saved generative training/validation data.
-- `arc_datasets/arc_surrogate_v5_g{1,2,3,4}.npz`: saved surrogate data and normalization.
-- `arc_chord_v5_g{1,2,3,4}/config.json`: architecture and training configuration.
-- `arc_chord_v5_g{1,2,3,4}/models/arc_cvae_z16_chord{0,0.01}.pt`: model weights.
-- `arc_surrogate_v5_g{1,2,3,4}/models/surrogate.pt`: per-gap surrogate weights.
-- `arc_v5_eval/arc_v5_front_g{1,2,3,4}_lambda{0,0p01}.json`: saved sweeps and
-  high-fidelity checks of candidates selected on low-fidelity Pareto fronts.
+`training.load_archived_model()` loads a checkpoint from the catalog in
+`fixed_ar/models.json`. The catalog includes VAE, cVAE, unconditional CHORD and
+CHORD at latent dimensions 4, 8, 12 and 16 for three training seeds. The additional
+seed-zero z=8 CHORD checkpoint is named `chord_alternate.pt` and retains its own
+source-version label. Each bare state dictionary is unchanged from the archive.
+The shared metadata stores original decoder transforms; conditioning names and
+units match the released corpus. The decoder's feature normalization must not be
+replaced by the surrogate's normalization.
 
-The archived per-gap high-fidelity columns count feasible survivors of low-fidelity
-Pareto screening, not a recomputed high-fidelity Pareto front. Across all four gaps,
-both regularizer arms used 11,406 low-fidelity and 109 high-fidelity evaluations.
-Their saved feasible objective pairs, combined with strict anchors at the archives’
-four-decimal precision, give hypervolume 172.26 without regularization and 172.79
-with it. These are separate from the 1,200-candidate stratified benchmark evaluation.
+For the four front gaps, the released prepared generator arrays retain their
+original splits. Small `surrogate_metadata.npz` files provide the surrogate's
+normalization without requiring the full per-gap surrogate-training arrays.
+All eight decoder checkpoints and four surrogate checkpoints have been checked
+with the standalone loaders. See [REPRODUCING.md](REPRODUCING.md) for commands.
 
-The braces above describe families of object names, not artifact-loader syntax.
-Exact rebuilding of the saved datasets additionally requires source queues,
-augmentation provenance, and their metric shards. Internal availability is not a
-completed public release; dataset visibility remains private.
+## Full historical data available upon request
 
-## Prepared front reproduction package
+Contact [Santiago A. Cadena](mailto:scadena@proximafusion.com) for the complete
+archives used in the historical experiments:
 
-The expanded release candidate stages the four generative datasets, four surrogate
-datasets, all eight decoder checkpoints, four surrogate checkpoints, and original
-configurations from pinned GCS object generations. Its standalone loaders preserve
-the saved splits, conditioning order, and separate feature statistics. The numerical
-arrays are unchanged; string metadata uses a pickle-free representation.
-See [REPRODUCING.md](REPRODUCING.md) for the layout, inference commands and parity
-checks. This package is separate from the currently pinned Hugging Face revision.
+- The 1,010,066-design feasible pool and its original grouped splits.
+- The separate 5,089,970-row surrogate dataset, including all 15 target metrics,
+  missing-value masks, original 90/10 split and preprocessing statistics.
+- The complete per-gap surrogate training arrays and source-campaign provenance.
 
-## What is not in the pinned Hugging Face revision
+These archives preserve the original optimization histories, including similar
+late-campaign boundaries. The compact release avoids requiring their download
+for inference. The million-design feasible pool is not a substitute for the
+full surrogate dataset, which also contains constraint-violating designs.
 
-The paper's per-gap training corpus is **not** included. Those models were trained
-on their two bracketing anchor campaigns plus simulator-evaluated rescalings of
-boundaries from those campaigns. Held-out campaigns and their rescaled descendants
-were excluded by provenance. The fixed-AR=7 `corpus.parquet` is a different source
-dataset and cannot reconstruct that training pool.
-
-The released augmentation code rescales boundaries and re-evaluates their metrics.
-Its entry point now requires an explicit anchor-campaign corpus and checks campaign
-provenance before simulation. The prepared package bypasses this expensive build
-step for saved-model inference. Exact retraining still needs the archived trainer's
-sampling and optimization protocol, not just matching input arrays.
-
-Regenerating it is not free. Every rescaled boundary has to go back through the
-simulator, because rescaling changes the physics and a source's metrics describe a
-different configuration. At roughly 50 vCPU-seconds per boundary, a few hundred thousand
-rows is a few thousand vCPU-hours.
-
-Accuracy of the rescale, measured against the simulator: aiming six published boundaries
-at targets from 8 to 12 lands within 0.03 on average and 0.13 at worst, with the error
-growing with distance from the source's own aspect ratio. That approximation costs
-nothing, because what a boundary ends up at is read back from the simulator rather than
-assumed.
+Reproducing historical training additionally requires the archived optimizer,
+sampling and validation protocol. A model trained using the general-purpose
+examples or the compact subset is a new training run, not an established
+reproduction of the paper's checkpoints. No claim of exact retraining parity is
+made by the inference checks.
