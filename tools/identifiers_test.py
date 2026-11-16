@@ -3,13 +3,12 @@
 import pathlib
 
 import pytest
-
-from . import identifiers
+from tools import identifiers
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
 # Built rather than written out, so this file does not trip the scan it exercises.
-BUCKET_URI = "gs://" + "proxima" + "-ml-prototyping/someone/x"
+STORAGE_URI = "gs" + "://example-artifacts/object"
 MONOREPO_IMPORT = "from " + "experimental" + ".someone.thing import helper"
 AUTHOR_LINE = "Written by Santiago " + "Ca" + "dena."
 
@@ -21,12 +20,31 @@ def test_the_package_is_ready_to_leave_the_monorepo() -> None:
     assert not findings, "\n".join(f.describe(ROOT) for f in findings)
 
 
-def test_an_internal_bucket_is_caught(tmp_path) -> None:
-    (tmp_path / "x.py").write_text(f'BASE = "{BUCKET_URI}"\n')
+@pytest.mark.parametrize("suffix", [".py", ".json", ".ipynb", ".sh"])
+def test_a_cloud_storage_uri_is_caught(tmp_path, suffix: str) -> None:
+    (tmp_path / f"artifact{suffix}").write_text(f'BASE = "{STORAGE_URI}"\n')
 
     findings = identifiers.scan(tmp_path, identifiers.PUBLIC)
 
-    assert [f.pattern.name for f in findings] == ["internal_bucket"]
+    assert [f.pattern.name for f in findings] == ["cloud_storage_uri"]
+
+
+@pytest.mark.parametrize("host_prefix", ["", "example-artifacts."])
+def test_a_cloud_storage_url_is_caught(tmp_path, host_prefix: str) -> None:
+    location = (
+        "https://"
+        + host_prefix
+        + "storage."
+        + "googleapis.com/example-artifacts/object"
+    )
+    (tmp_path / "manifest.json").write_text(location)
+    findings = identifiers.scan(tmp_path, identifiers.PUBLIC)
+    assert [f.pattern.name for f in findings] == ["cloud_storage_url"]
+
+
+def test_the_scanner_source_is_also_checked(tmp_path) -> None:
+    (tmp_path / "identifiers.py").write_text(STORAGE_URI)
+    assert [f.pattern.name for f in identifiers.scan(tmp_path)] == ["cloud_storage_uri"]
 
 
 def test_a_monorepo_import_is_caught(tmp_path) -> None:
@@ -59,11 +77,11 @@ def test_an_email_is_caught_at_the_anonymous_level(tmp_path) -> None:
 
 def test_the_anonymous_level_includes_the_public_one(tmp_path) -> None:
     """An archive for review has to clear both bars, not trade one for the other."""
-    (tmp_path / "x.py").write_text(f'BASE = "{BUCKET_URI}"\n')
+    (tmp_path / "x.py").write_text(f'BASE = "{STORAGE_URI}"\n')
 
     names = {f.pattern.name for f in identifiers.scan(tmp_path, identifiers.ANONYMOUS)}
 
-    assert "internal_bucket" in names
+    assert "cloud_storage_uri" in names
 
 
 def test_clean_source_produces_nothing(tmp_path) -> None:
@@ -75,7 +93,7 @@ def test_clean_source_produces_nothing(tmp_path) -> None:
 def test_compiled_and_vendored_directories_are_skipped(tmp_path) -> None:
     cache = tmp_path / "__pycache__"
     cache.mkdir()
-    (cache / "x.py").write_text(f'BASE = "{BUCKET_URI}"\n')
+    (cache / "x.py").write_text(f'BASE = "{STORAGE_URI}"\n')
 
     assert not identifiers.scan(tmp_path, identifiers.PUBLIC)
 

@@ -22,8 +22,8 @@ The existing corpus and front-evaluation files are unchanged from revision
 `ad7d496e918cf193e79076418426ed314a07d1de`. The new release adds the surrogate subset,
 checkpoints, inference inputs and documentation. `audit.json` describes the original
 data checks; `release_inference_checks.json` and `surrogate_subset_audit.json` record
-the added checks. Artifact storage backends use `chord[huggingface]`, `chord[gcs]`,
-or ordinary local paths.
+the added checks. Install `chord[huggingface]` to download artifacts, or use
+a local copy through `CHORD_ARTIFACT_BASE`.
 
 ## `corpus.parquet`
 
@@ -129,8 +129,8 @@ to rounded anchor targets. It also reports the largest adjacent aspect-ratio gap
 along the front, which decreases from 1.25 to 0.5076. The exact point count depends
 on numerical resolution: rounding both objectives to six decimal places gives
 5 anchor and 42 combined points while preserving the reported hypervolumes.
-The source-builder
-fix on `scadena-ca-batch-a` is still needed before regenerating the GCS table.
+When rebuilding the campaign table, preserve these corrected roles rather
+than reassigning campaigns from their achieved aspect ratios.
 
 ## `generated_front.parquet`
 
@@ -153,7 +153,7 @@ strict generated rows with tolerance-filtered anchors.
 ## Reproduction levels and version requirements
 
 The `stellarator` extra pins `constellaration==0.2.6`, preserving the version
-identified by the `scadena-chord-pin-simulator` audit. Version 0.3 changes the flux-compression
+used for the audited benchmark feasibility calculation. Version 0.3 changes the flux-compression
 definition and therefore the benchmark's feasible set. Saved-metric rescoring does
 not require installing or running VMEC.
 
@@ -168,7 +168,7 @@ export CHORD_ARTIFACT_BASE=artifacts/chord
 |---|---|---|
 | Corpus analysis and front rescoring | pinned Hugging Face package | no new simulator evaluation |
 | Re-evaluating released boundaries | package plus the pinned simulator | requires new physics evaluations |
-| Rescoring the original fixed-AR interpolation sweep | candidates and metric shards in internal GCS | historical tables use eight interior points; the release evaluator includes all nine |
+| Rescoring the original fixed-AR interpolation sweep | historical candidate and evaluation files, available upon request | historical tables use eight interior points; the release evaluator includes all nine |
 | Saved-model inference | fixed-AR and per-gap checkpoints on Hugging Face | original normalization included |
 | Retraining the original front models | prepared generator inputs and configs on Hugging Face; complete surrogate inputs upon request | archived training protocol still needs a validated standalone port |
 

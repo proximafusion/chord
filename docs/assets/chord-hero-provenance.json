@@ -1,0 +1,20 @@
+{
+  "image": "chord-hero.png",
+  "sha256": "a200437b08db305d4279e44666d78e00d4ed1b23de9b8e06962f8ae36be93926",
+  "title": "CHORD",
+  "subtitle": "Learning to interpolate feasible designs",
+  "format": "1620 x 1440 transparent RGBA PNG; one shared image for light and dark backgrounds",
+  "dataset": "https://huggingface.co/datasets/proxima-fusion/chord-paper",
+  "example": "Archived CHORD self-consistent interpolation example used for the paper, pair 18, latent dimension 16.",
+  "archive_alpha": [
+    1.0,
+    0.65,
+    0.15,
+    0.1,
+    0.0
+  ],
+  "projection": "PCA of 90 raw boundary coefficients; not latent-code PCA.",
+  "cloud": "20,000 samples from the released 500k surrogate corpus, random seed 7; every second sample displayed. Includes both feasible and infeasible designs.",
+  "curve": "Smooth visual guide through five actual projected samples, not a dense decoder evaluation or a continuous-feasibility claim.",
+  "boundaries": "Exact archived three-field-period decoded boundaries with shared camera and scale. Thumbnails are offset from the matching markers for readability."
+}

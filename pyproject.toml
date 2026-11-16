@@ -28,8 +28,7 @@ Issues = "https://github.com/proximafusion/chord/issues"
 Dataset = "https://huggingface.co/datasets/proxima-fusion/chord-paper"
 
 [project.optional-dependencies]
-# Artifact backends. The base URI's scheme decides which is needed.
-gcs = ["gcsfs"]
+# Download published artifacts from Hugging Face; local paths need no extra.
 huggingface = ["huggingface-hub"]
 # The stellarator experiments evaluate designs with VMEC, which arrives through
 # constellaration. The constructed-example benchmarks need none of this.

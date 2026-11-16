@@ -1,4 +1,6 @@
-# CHORD
+<p align="center">
+  <img src="docs/assets/chord-hero.png" width="720" alt="CHORD — Learning to interpolate feasible designs. Five stellarator boundary samples in a boundary-space PCA projection; the smooth curve is an illustrative guide.">
+</p>
 
 CHORD combines a conditional VAE trained to penalize predicted constraint
 violations along latent interpolants with self-consistent conditioning at
@@ -48,7 +50,6 @@ are required. Run these commands from the repository root:
 python -m pip install -e .                 # the method
 python -m pip install -e '.[toy]'           # adds CMA-ES for the constructed benchmarks
 python -m pip install -e '.[stellarator]'   # ConStellaration 0.2.6 for VMEC evaluation
-python -m pip install -e '.[gcs]'           # optional cloud-storage backend
 python -m pip install -e '.[huggingface]'   # Hugging Face artifact access
 ```
 

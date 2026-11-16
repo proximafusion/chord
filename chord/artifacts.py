@@ -2,8 +2,7 @@
 
 Artifacts resolve against a single base, so a location change is one
 environment variable rather than an edit in every module that reads data. The
-scheme of that base selects the backend: `gs://` for cloud storage, `hf://` for
-a Hugging Face repository, a bare path for local files.
+base can point to a Hugging Face repository with `hf://` or to a local directory.
 
 The released surrogate was trained before this package adopted constellaration's
 metric conventions, so it predicts under the project's original names and units.

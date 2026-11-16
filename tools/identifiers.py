@@ -43,14 +43,19 @@ A licence writes it with a space and a repository slug with a hyphen, so matchin
 one spelling would pass a file that names the organisation plainly.
 """
 
-_BUCKET = "proxima" + "-ml-prototyping"
 _AUTHORS = ("sca" + "dena", "a" + "merlo", "Ca" + "dena", "Mer" + "lo")
 
 PATTERNS: tuple[Pattern, ...] = (
     Pattern(
-        "internal_bucket",
-        re.escape(_BUCKET),
-        "an internal bucket no outside reader can reach",
+        "cloud_storage_uri",
+        r"\b(?:gs|s3|az|abfs|abfss)://[^\s\"'`<>]+",
+        "a cloud-storage location outside the public artifact workflow",
+        PUBLIC,
+    ),
+    Pattern(
+        "cloud_storage_url",
+        r"https?://(?:[\w.-]+\.)?(?:storage\.googleapis\.com|storage\.cloud\.google\.com)\b",
+        "a cloud-storage URL outside the public artifact workflow",
         PUBLIC,
     ),
     Pattern(
@@ -81,7 +86,21 @@ PATTERNS: tuple[Pattern, ...] = (
     ),
 )
 
-SCANNED_SUFFIXES = (".py", ".toml", ".md", ".cfg", ".yaml", ".yml")
+SCANNED_SUFFIXES = (
+    ".py",
+    ".toml",
+    ".md",
+    ".cfg",
+    ".yaml",
+    ".yml",
+    ".json",
+    ".txt",
+    ".ipynb",
+    ".sh",
+    ".rst",
+    ".html",
+    ".svg",
+)
 SCANNED_NAMES = ("LICENSE", "NOTICE", "CITATION.cff")
 """Files worth scanning that carry no suffix.
 
@@ -119,7 +138,7 @@ def scan(root: pathlib.Path, level: str = PUBLIC) -> list[Finding]:
         interesting = path.suffix in SCANNED_SUFFIXES or path.name in SCANNED_NAMES
         if not interesting or not path.is_file():
             continue
-        if SKIPPED_DIRECTORIES & set(path.parts) or path.name == "identifiers.py":
+        if SKIPPED_DIRECTORIES & set(path.parts):
             continue
         for number, text in enumerate(
             path.read_text(encoding="utf-8", errors="replace").splitlines(), start=1
